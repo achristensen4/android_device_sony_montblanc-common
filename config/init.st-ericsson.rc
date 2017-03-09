@@ -409,7 +409,7 @@ service dhcpcd_fix rm /data/misc/dhcp/*
 
 on property:init.svc.wpa_supplicant=stopped
     stop dhcpcd
-    start dhcpcd_fix
+    stop dhcpcd_fix
 
 on property:init.svc.dhcpcd=stopped
     stop dhcpcd
