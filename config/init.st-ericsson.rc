@@ -45,7 +45,7 @@ on init
 
 on fs
     wait /dev/block/mmcblk0p10
-    mount ext4 /dev/block/mmcblk0p10 /system ro
+    mount ext4 /dev/block/mmcblk0p10 /system rw
     exec /system/bin/e2fsck -y /dev/block/mmcblk0p11
     setprop ro.crypto.state unsupported
     mount ext4 /dev/block/mmcblk0p11 /data nosuid nodev noatime noauto_da_alloc
@@ -54,7 +54,6 @@ on fs
 
 
     # SEMC: Start the TrimArea Daemon and early TA-users
-    class_start trimarea
     exec /system/bin/wait4tad
     exec /sbin/checkabortedflash
     exec /sbin/mr
@@ -175,7 +174,7 @@ on early-boot
 
 on boot
     # Set timeout value for rmnet stats.
-    write /sys/devices/virtual/net/rmnet0/timeout_suspend 5000000
+    write /sys/devices/virtual/net/rmnet0/timeout_suspend 0
 
     # Permissions for System Server and daemons.
     chown system system /sys/devices/platform/nmk-i2c.2/i2c-2/2-0068/device1/gyro_range
@@ -208,7 +207,7 @@ on boot
     class_start default
 
     # STE: Enable wide-band speech for Bluetooth
-    setprop bt.hfp.wideband 1
+    setprop bt.hfp.wideband 0
 
     class_start bootstage1
 
@@ -314,8 +313,8 @@ on boot
     exec /system/bin/install_wlan
 
     # power-management
-    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ondemand
-    write /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor ondemand
+    write /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor powersave
+    write /sys/devices/system/cpu/cpu1/cpufreq/scaling_governor powersave
     write /sys/devices/system/cpu/cpufreq/ondemand/sampling_rate 50000
     write /sys/devices/system/cpu/cpufreq/ondemand/up_threshold 90
     write /sys/devices/system/cpu/cpufreq/ondemand/io_is_busy 1
@@ -325,7 +324,7 @@ on boot
     write /sys/devices/system/cpu/cpu1/cpufreq/scaling_min_freq 200000
 
     # SEMC: Include IO wait time into CPU usage calculation to increase IO performance
-    write /proc/sys/kernel/sysrq 0
+    write /proc/sys/kernel/sysrq 1
 
 # Crash Safe Parameter Storage Area, serving production parameter requests from clients.
 # Configuration is read from file "/etc/cspsa.conf" and each found area spawns a CSPSA server
@@ -365,8 +364,6 @@ service admsrv /system/bin/admsrv
     class main
     user root
     group system audio inet net_bt net_bt_admin net_raw shell
-    ioprio rt 4
-    capability NET_ADMIN NET_RAW SYS_NICE
 
 service ste-cg29xx_ctrl /system/xbin/ste-cg29xx_ctrl -b 115200 -p 6 -l 23 -i /system/bin/cg2900-channel_init.sh /dev/ttyAMA0
     class main
@@ -379,43 +376,35 @@ service thermald /system/bin/thermald
     class main
     user root
     group root dbus_access
-    disabled  # To be removed!
 
 # STE
 service wpa_supplicant /system/bin/wpa_supplicant -Dnl80211 -iwlan0
     class main
     socket wpa_wlan0 dgram 660 wifi wifi
-    disabled
     oneshot
 
 service hostapd_bin /system/bin/hostapd -dddd /data/misc/wifi/hostapd.conf
     class main
     socket wpa_wlan1 dgram 660 wifi wifi
-    disabled
     oneshot
 
 # STE
 service dhcpcd_wlan0 /system/bin/dhcpcd -dB -t 30 -o domain_name_servers
     class main
-    disabled
     oneshot
 
 service iprenew_wlan0 /system/bin/dhcpcd -n
     class main
-    disabled
     oneshot
 
 service dhcpcd_bnep0 /system/bin/dhcpcd -B -t 30
-    disabled
     oneshot
 
 service iprenew_bnep0 /system/bin/dhcpcd -n
-    disabled
     oneshot
 
 service dhcpcd_fix rm /data/misc/dhcp/*
     user root
-    disabled
     oneshot
 
 on property:init.svc.wpa_supplicant=stopped
@@ -424,7 +413,7 @@ on property:init.svc.wpa_supplicant=stopped
 
 on property:init.svc.dhcpcd=stopped
     stop dhcpcd
-    start dhcpcd_fix
+    stop dhcpcd_fix
 
 # STE, C&N service daemon
 service cn_server /system/bin/cn_server
@@ -504,6 +493,7 @@ service tad /system/bin/tad /dev/block/mmcblk0 9,4,256
     group root
     socket tad stream 0660 system system
     class trimarea
+    disabled
 
 # SEMC: Updatemiscta
 service updatemiscta /system/bin/updatemiscta
@@ -552,5 +542,3 @@ on property:dhcp.wlan0.result=ok
 
 on property:init.svc.hostapd_bin=stopped
     exec /system/bin/iw dev mon.wlan0 del
-
-
