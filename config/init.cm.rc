@@ -32,3 +32,4 @@ service compcache /system/bin/handle_compcache
     user root
     group root
     oneshot
+    disabled
